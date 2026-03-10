@@ -93,8 +93,7 @@ class StreamPanel(QGroupBox):
     def set_can_stream(self, can_stream: bool):
         """Enable/disable stream button."""
         self.stream_btn.setEnabled(can_stream)
-        if self.config.switch:
-            self.pause_btn.setEnabled(can_stream and self._is_streaming)
+        self.pause_btn.setEnabled(self.config.switch and can_stream and self._is_streaming)
         self.reset_btn.setEnabled(can_stream)
         
     def reset(self):

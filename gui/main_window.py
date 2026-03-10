@@ -38,7 +38,7 @@ try:
 except ImportError:
     pyvirtualcam = None
 
-from .output_window import OutputWindow
+# from .output_window import OutputWindow
 from .widgets.connection_panel import ConnectionPanel
 from .widgets.reference_panel import ReferencePanel
 from .widgets.webcam_panel import WebcamPanel
@@ -59,7 +59,7 @@ class MainWindow(QMainWindow):
         # Components
         self.ws_client: WebSocketClient = None
         self.webcam: WebcamCapture = None
-        self.output_window: OutputWindow = None
+        # self.output_window: OutputWindow = None
         self.virtual_camera = None  # pyvirtualcam camera instance
         
         # State
@@ -75,7 +75,7 @@ class MainWindow(QMainWindow):
         
     def _init_ui(self):
         """Initialize user interface."""
-        self.setWindowTitle("PersonaLive Client")
+        self.setWindowTitle("PersonaLive Python GUI Client - by Phreaker")
         self.setGeometry(100, 100, 1400, 900)
         
         # Central widget with splitter
@@ -153,7 +153,7 @@ class MainWindow(QMainWindow):
         """Connect widget signals to handlers."""
         # Connection panel
         self.connection_panel.connect_clicked.connect(self._handle_connection)
-        # self.connection_panel.url_changed.connect(lambda url: setattr(self.config, 'server_url', url))
+        self.connection_panel.url_changed.connect(lambda url: setattr(self.config, 'server_url', url))
         
         # Reference panel
         self.reference_panel.image_loaded.connect(self._handle_image_loaded)
@@ -288,10 +288,11 @@ class MainWindow(QMainWindow):
             self.reference_panel.enable_clear_btn(False)
             self.webcam_panel.enable_start_btn(False)
             self.webcam_panel.set_running(False)
+            from PyQt6.QtGui import QPixmap
+            self.webcam_label.setPixmap(QPixmap())
             self.webcam_label.setText("Webcam feed will appear here")
-            # from PyQt6.QtGui import QPixmap
-            # self.webcam_label.setPixmap(QPixmap())
-            self._hide_output_window()
+            self._cleanup_virtual_camera()
+            # self._hide_output_window()
             
     def _handle_webcam(self, start: bool):
         """Handle webcam start/stop."""
@@ -312,9 +313,9 @@ class MainWindow(QMainWindow):
                 self.webcam.stop()
                 self.webcam = None
             self.webcam_panel.set_running(False)
+            from PyQt6.QtGui import QPixmap
+            self.webcam_label.setPixmap(QPixmap())
             self.webcam_label.setText("Webcam feed will appear here")
-            # from PyQt6.QtGui import QPixmap
-            # self.webcam_label.setPixmap(QPixmap())
             
     def _handle_fps_changed(self, fps: int):
         """Handle user changing the desired capture FPS."""
@@ -344,6 +345,48 @@ class MainWindow(QMainWindow):
                 self.ws_client.send_frame(buf.tobytes())
             except Exception as e:
                 self._handle_error(f"Frame send error: {e}")
+
+    def _init_virtual_camera(self):
+        # Initialize virtual camera for OBS if available
+        if pyvirtualcam and not self.virtual_camera:
+            try:
+                # Use processed label size as virtual camera resolution
+                width = max(640, self.processed_label.width())
+                height = max(480, self.processed_label.height())
+                self.virtual_camera = pyvirtualcam.Camera(width=width, height=height, fps=30)
+                self.virtual_camera.__enter__()
+                self.log_panel.append_log(f"Virtual camera started: {width}x{height} @ 30fps")
+            except Exception as e:
+                self.log_panel.append_error(f"Failed to start virtual camera: {e}")
+                self.virtual_camera = None
+
+    def _cleanup_virtual_camera(self):
+        # Cleanup virtual camera
+        if self.virtual_camera and pyvirtualcam:
+            try:
+                self.virtual_camera.__exit__(None, None, None)
+                self.virtual_camera = None
+                self.log_panel.append_log("Virtual camera stopped")
+            except Exception as e:
+                self.log_panel.append_error(f"Error stopping virtual camera: {e}")
+
+    def _update_virtual_camera_frame(self, frame_bytes: bytes):
+        # Send to virtual camera if OBS capture is enabled
+        if self.virtual_camera and pyvirtualcam:
+            try:
+                nparr = np.frombuffer(frame_bytes, np.uint8)
+                frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                if frame is not None:
+                    if frame.shape[:2] != (self.virtual_camera.height, self.virtual_camera.width):
+                        frame = cv2.resize(frame, (self.virtual_camera.width, self.virtual_camera.height))
+
+                # Convert BGR → RGB for pyvirtualcam
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                self.virtual_camera.send(frame_rgb)
+            except Exception as e:
+                # print(f"Virtual camera send error: {e}")
+                self.log_panel.append_error(f"Virtual camera send error: {e}")
                 
     def _handle_stream_toggle(self, start: bool):
         """Handle stream start/stop."""
@@ -357,29 +400,11 @@ class MainWindow(QMainWindow):
                 self.ws_client.set_lcm_status(LCMLiveStatus.SEND_FRAME)
                 self.is_reset_done = False
             
-            # Initialize virtual camera for OBS if available
-            if pyvirtualcam and not self.virtual_camera:
-                try:
-                    # Use processed label size as virtual camera resolution
-                    width = max(640, self.processed_label.width())
-                    height = max(480, self.processed_label.height())
-                    self.virtual_camera = pyvirtualcam.Camera(width=width, height=height, fps=30)
-                    self.virtual_camera.__enter__()
-                    self.log_panel.append_log(f"Virtual camera started: {width}x{height} @ 30fps")
-                except Exception as e:
-                    self.log_panel.append_error(f"Failed to start virtual camera: {e}")
-                    self.virtual_camera = None
+            self._init_virtual_camera()
                     
             self.log_panel.append_log("Streaming started")
         else:
-            # Cleanup virtual camera
-            if self.virtual_camera and pyvirtualcam:
-                try:
-                    self.virtual_camera.__exit__(None, None, None)
-                    self.virtual_camera = None
-                    self.log_panel.append_log("Virtual camera stopped")
-                except Exception as e:
-                    self.log_panel.append_error(f"Error stopping virtual camera: {e}")
+            self._cleanup_virtual_camera()
                     
             self.log_panel.append_log("Streaming stopped")
             
@@ -494,21 +519,7 @@ class MainWindow(QMainWindow):
             scaled = scale_pixmap(pixmap, self.processed_label.size())
             self.processed_label.setPixmap(scaled)
             
-            # Send to virtual camera if OBS capture is enabled
-            if self.virtual_camera and pyvirtualcam:
-                try:
-                    nparr = np.frombuffer(frame_bytes, np.uint8)
-                    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                    if frame is not None:
-                        if frame.shape[:2] != (self.virtual_camera.height, self.virtual_camera.width):
-                            frame = cv2.resize(frame, (self.virtual_camera.width, self.virtual_camera.height))
-
-                    # Convert BGR → RGB for pyvirtualcam
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                    self.virtual_camera.send(frame_rgb)
-                except Exception as e:
-                    print(f"Virtual camera send error: {e}")
+            self._update_virtual_camera_frame(frame_bytes)
                     
         except Exception as e:
             self._handle_error(f"Frame processing error: {e}")
@@ -538,8 +549,8 @@ class MainWindow(QMainWindow):
             self.webcam.stop()
         if self.ws_client:
             self.ws_client.stop()
-        if self.output_window:
-            self.output_window.close()
+        # if self.output_window:
+        #     self.output_window.close()
         if self.virtual_camera and pyvirtualcam:
             try:
                 self.virtual_camera.__exit__(None, None, None)

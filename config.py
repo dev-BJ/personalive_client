@@ -6,7 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class ClientConfig:
     """Client configuration settings."""
-    server_url: str = "wss://8sh37m99kesaz5-8000.proxy.runpod.net"
+    server_url: str = "ws://localhost:8765"
     client_id: str | None = None
     max_reconnect_attempts: int = 5
     reconnect_delay: float = 3.0

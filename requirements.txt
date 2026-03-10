@@ -1,14 +1,19 @@
+altgraph==0.17.5
 certifi==2026.2.25
 charset-normalizer==3.4.5
 idna==3.11
 numpy==2.4.2
 opencv-python-headless==4.13.0.92
+packaging==26.0
 -e file:///home/phreaker/Documents/code/personalive_client
 pillow==12.1.1
+pyinstaller==6.19.0
+pyinstaller-hooks-contrib==2026.3
 pyqt6==6.10.2
 pyqt6-qt6==6.10.2
 pyqt6-sip==13.11.0
 pyvirtualcam==0.15.0
 requests==2.32.5
+setuptools==82.0.1
 urllib3==2.6.3
 websockets==16.0

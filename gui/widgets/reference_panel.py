@@ -81,7 +81,7 @@ class ReferencePanel(QGroupBox):
         qimage = QImage(data, thumb.width, thumb.height, QImage.Format.Format_RGB888)
         pixmap = QPixmap.fromImage(qimage)
         
-        self.image_label.setPixmap(pixmap)
+        self.image_label.setPixmap(pixmap.scaled(self.image_label.width(), self.image_label.height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.image_label.setText("")
         
     def _clear_image(self):
