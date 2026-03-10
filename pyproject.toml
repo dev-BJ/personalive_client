@@ -1,0 +1,24 @@
+[project]
+name = "personalive-client"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "PyQt6",
+    "requests",
+    "websockets",
+    "opencv-python-headless",
+    "numpy",
+    "Pillow",
+]
+
+[project.scripts]
+personalive-client = "personalive_client.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
