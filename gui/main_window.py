@@ -272,6 +272,7 @@ class MainWindow(QMainWindow):
                 self.ws_client.stop()
                 self.ws_client = None
             self.connection_panel.set_connected(False)
+            self.connection_panel.set_status("Disconnected", "#F44336")
             self.stream_panel.set_can_stream(False)
             
     def _on_connection_status_changed(self, status: str, color: str):
@@ -286,8 +287,7 @@ class MainWindow(QMainWindow):
             self.connection_panel.client_id_label.setText("Client ID: Not connected")
             self.reference_panel.enable_load_btn(False)
             self.reference_panel.enable_clear_btn(False)
-            self.webcam_panel.enable_start_btn(False)
-            self.webcam_panel.set_running(False)
+            self._handle_webcam(False)
             from PyQt6.QtGui import QPixmap
             self.webcam_label.setPixmap(QPixmap())
             self.webcam_label.setText("Webcam feed will appear here")
@@ -307,12 +307,14 @@ class MainWindow(QMainWindow):
             self.webcam.start()
             
             self.webcam_panel.set_running(True)
+            self.webcam_panel.enable_start_btn(True)
             self.log_panel.append_log(f"Webcam started (Device {device_id}, {fps} FPS)")
         else:
             if self.webcam:
                 self.webcam.stop()
                 self.webcam = None
             self.webcam_panel.set_running(False)
+            self.webcam_panel.enable_start_btn(False)
             from PyQt6.QtGui import QPixmap
             self.webcam_label.setPixmap(QPixmap())
             self.webcam_label.setText("Webcam feed will appear here")

@@ -18,4 +18,6 @@ class QtLogHandler(logging.Handler):
         
     def emit(self, record):
         msg = self.format(record)
-        self.emitter.log_message.emit(msg)
+        # self.emitter.log_message.emit(msg)
+        if self.emitter:
+            self.emitter.log_message.emit(msg)

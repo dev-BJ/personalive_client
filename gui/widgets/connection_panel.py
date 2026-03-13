@@ -56,6 +56,8 @@ class ConnectionPanel(QGroupBox):
         if url.startswith("https://"):
             url = "wss://" + url[len("https://"):]
         url = url.rstrip('/')
+        self.url_input.setText(url)  # Update input with cleaned URL
+        self.config.server_url = url
         self.url_changed.emit(url)
         
     def set_connected(self, connected: bool):
@@ -78,5 +80,5 @@ class ConnectionPanel(QGroupBox):
         
     def get_url(self) -> str:
         """Get current server URL."""
-        # return self.url_input.text()
-        return self.config.server_url
+        return self.url_input.text()
+        # return self.config.server_url

@@ -198,8 +198,19 @@ class WebSocketClient(QThread):
                 # IMPORTANT: yield to event loop
                 await asyncio.sleep(0)
 
+            except websockets.exceptions.ConnectionClosed as e:
+                # closed without proper handshake ("no close frame received or sent")
+                self.handle_error(f"Send error (connection closed): {e}")
+                self.set_status(ConnectionStatus.DISCONNECTED)
+                self.set_lcm_status(LCMLiveStatus.WAIT)
+                # propagate so connect() notices and triggers reconnection
+                raise
             except Exception as e:
+                # other send errors
                 self.handle_error(f"Send error: {str(e)}")
+                self.set_status(ConnectionStatus.DISCONNECTED)
+                self.set_lcm_status(LCMLiveStatus.WAIT)
+                # break out of the loop; let outer task cancellation handle cleanup
                 break
                 
     async def _receive_loop(self):
@@ -220,9 +231,12 @@ class WebSocketClient(QThread):
             except websockets.exceptions.ConnectionClosed:
                 self.log_message.emit("Connection closed by server")
                 self.set_status(ConnectionStatus.DISCONNECTED)
+                self.set_lcm_status(LCMLiveStatus.WAIT)
                 break
             except Exception as e:
                 self.handle_error(f"Receive error: {str(e)}")
+                self.set_status(ConnectionStatus.DISCONNECTED)
+                self.set_lcm_status(LCMLiveStatus.WAIT)
                 break
                 
     async def _handle_text_message(self, message: str):
